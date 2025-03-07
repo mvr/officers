@@ -62,8 +62,8 @@ __forceinline__
 __device__ void set_bit_8(uint32_t array[8], const unsigned i) {
   __builtin_assume(i < (1u<<8));
 
-  // This is bad: the unknown index forces the array to be stored in
-  // local memory rather than registers
+  // This definition is bad: the unknown index forces the array to be
+  // stored in local memory rather than registers
 
   // array[i/32] |= 1u << (i%32);
 
@@ -157,7 +157,6 @@ __global__ void officers_kernel(unsigned long long start_position, uint8_t *glob
         // and wait for it to be available.
         __shared__ uint64_t buffer_correct_shared;
         if (threadIdx.x == 0) {
-
           uint64_t buffer_correct_target = buffer_correct;
 
           while (buffer_correct_target <=
@@ -267,7 +266,6 @@ std::vector<uint16_t> naive_officers(unsigned length) {
 }
 
 void investigate(const std::vector<uint16_t> &values, uint64_t to_compute) {
-  // std::vector<bool> seen(512, false);
   std::map<uint16_t, std::vector<std::pair<uint64_t, uint16_t>>> elims;
 
   uint64_t midway = (to_compute-1) >> 1;
@@ -277,14 +275,7 @@ void investigate(const std::vector<uint16_t> &values, uint64_t to_compute) {
     uint16_t value = values[j] ^ values[to_compute - 1 - j];
 
     elims[value].push_back({static_cast<uint64_t>(to_compute - 1 - j), values[to_compute - 1 - j]});
-
-    // seen[value] = true;
   }
-
-  // uint16_t mex = 0;
-  // while (mex < seen.size() && seen[mex]) {
-  //   mex++;
-  // }
 
   for (const auto& [key, values] : elims) {
     std::cout << key << " eliminated by ";
@@ -363,19 +354,10 @@ void run_officers() {
   cudaMallocHost(&h_progress, sizeof(unsigned long long));
   cudaHostGetDevicePointer(&d_progress, h_progress, 0);
 
-      cudaError_t error = cudaGetLastError();
-      if(error != cudaSuccess) {
-        std::cerr << "CUDA error: " << cudaGetErrorString(error) << std::endl;
-        exit(-1);
-      }
-
   unsigned initial_length = (1<<16) + (1<<15);
   std::cout << "Generating/loading initial " << initial_length << " values." << std::endl;
   std::vector<uint16_t> initial = cached_naive_officers(initial_length, "officers_initial.txt");
 
-  // investigate(initial, 80255);
-  // exit(0);
-    
   std::cout << "Filling rare value constants." << std::endl;
   {
     uint16_t h_rare_positions[RARE_VALUE_COUNT];
@@ -394,11 +376,6 @@ void run_officers() {
     assert(idx == RARE_VALUE_COUNT);
     cudaMemcpyToSymbol(rare_positions, h_rare_positions, sizeof(h_rare_positions));
     cudaMemcpyToSymbol(rare_values, h_rare_values, sizeof(h_rare_values));
-    // cudaError_t error = cudaGetLastError();
-    //   if(error != cudaSuccess) {
-    //     std::cerr << "CUDA error: " << cudaGetErrorString(error) << std::endl;
-    //     exit(-1);
-    //   }
   }
 
   std::vector<bool> seen_values(512, false);
@@ -434,9 +411,6 @@ void run_officers() {
   std::cout << "Launching." << std::endl;
   officers_kernel<<<BLOCK_COUNT, BLOCK_SIZE>>>(1u << 16, d_global_buffer, d_progress);
 
-  // std::cout << "Value at 65665 is " << initial[65665] << std::endl;
-  // cudaDeviceSynchronize();
-
   unsigned long long reported_progress = *h_progress;
 
   while (*h_progress < debug_end) {
@@ -451,7 +425,6 @@ void run_officers() {
       }
     }
     while (reported_progress < *h_progress) {
-      // std::cout << "Reporting from " << reported_progress << std::endl;
       uint8_t news[BLOCK_SIZE] = {0};
       auto loc = reported_progress % GLOBAL_BUFFER_SIZE;
       memcpy(&news, h_global_buffer+loc, BLOCK_SIZE * sizeof(uint8_t));
@@ -477,14 +450,7 @@ void run_officers() {
         // }
       }
       reported_progress += BLOCK_SIZE;
-      // if (reported_progress >= initial.size())
-      // if (reported_progress >= (1 << 18))
-      // {
-      //   cudaDeviceSynchronize();
-      //   exit(0);
-      // }
     }
-    // break;
   }
   cudaDeviceSynchronize();
 
